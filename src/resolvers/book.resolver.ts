@@ -77,7 +77,7 @@ export class BookResolver {
       });
 
       return await this.bookRepository.findOne(book.identifiers[0].id, {
-        relations: ["author"],
+        relations: ["author", "author.books"],
       });
     } catch (e) {
       throw e;
@@ -88,7 +88,9 @@ export class BookResolver {
   @UseMiddleware(isAuth)
   async getAllBooks(): Promise<Book[]> {
     try {
-      return await this.bookRepository.find({ relations: ["author"] });
+      return await this.bookRepository.find({
+        relations: ["author", "author.books"],
+      });
     } catch (e) {
       throw e;
     }
@@ -99,8 +101,8 @@ export class BookResolver {
     @Arg("input", () => BookIdInput) input: BookIdInput
   ): Promise<Book | undefined> {
     try {
-      const book = this.bookRepository.findOne(input.id, {
-        relations: ["author"],
+      const book = await this.bookRepository.findOne(input.id, {
+        relations: ["author", "author.books"],
       });
       if (!book) {
         const error = new Error();
@@ -108,8 +110,8 @@ export class BookResolver {
         throw error;
       }
       return book;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      throw new Error(error);
     }
   }
 
@@ -131,7 +133,9 @@ export class BookResolver {
     @Arg("bookId", () => BookIdInput) bookId: BookIdInput
   ): Promise<Boolean> {
     try {
-      await this.bookRepository.delete(bookId.id);
+      //Utilizo la lógica de ver el resultado de la consulta (tmb podría buscar primero si existe el libro, como se hizo con el autor)
+      const result = await this.bookRepository.delete(bookId.id);
+      if (result.affected === 0) throw new Error("Book does not exist");
       return true;
     } catch (error) {
       throw error;
